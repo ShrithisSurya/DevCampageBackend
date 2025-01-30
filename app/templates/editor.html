@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customized Editor</title>
+
+    <link rel="stylesheet" href="//unpkg.com/grapesjs/dist/css/grapes.min.css" />
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Times New Roman', Times, serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-color: #343a40;
+        }
+
+        #gjs {
+            height: calc(100vh - 50px);
+            flex-grow: 1;
+            position: relative;
+            /* Add position: relative to the #gjs container */
+        }
+
+        .heading {
+            text-align: center;
+            color: white;
+        }
+
+        .editor-layout {
+            display: flex;
+            height: 100%;
+        }
+
+        .left-panel {
+            width: 300px;
+            background: #f8f9fa;
+            border-right: 1px solid #dee2e6;
+            overflow-y: auto;
+            position: relative;
+            background-color: #343a40;
+        }
+
+        /* Customize center canvas color */
+        .center-canvas {
+            flex-grow: 1;
+            border: 1px solid #3d3d3d;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            /* Set your desired background color here */
+        }
+
+
+        .fa-bars:hover {
+            color: plum;
+        }
+
+
+        .right-panel {
+            width: 300px;
+            background: #f8f9fa;
+            border-left: 1px solid #dee2e6;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .right-panel .blocks-section {
+            display: none;
+            flex-direction: column;
+            padding: 10px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .layers-container,
+        .styles-container,
+        .traits-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            margin: 10px;
+        }
+
+        .blocks-section {
+            max-height: 50%;
+            overflow-y: scroll;
+        }
+
+        .blocks-section>div {
+            margin-bottom: 10px;
+            padding: 10px;
+            background: #37373a;
+            border: 1px solid #262729;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .blocks-section>div:hover {
+            background: #343a40;
+        }
+
+        /* Removed Buttons */
+        .span,
+        .fa-paint-brush,
+        .fa-cog,
+        .fa-th-large,
+        .fa-square-o {
+            display: none;
+        }
+
+
+
+        /* Improved formatting for color changing options */
+        .style-manager .sectors {
+            display: flex;
+            flex-wrap: wrap;
+        }
+
+        .style-manager .sectors .name {
+            width: calc(50% - 10px);
+
+            margin-bottom: 5px;
+        }
+
+        .save-btn {
+            padding: 10px 20px;
+            font-size: 20px;
+            width: 40%;
+            margin: auto;
+            background-color: #343a40;
+            color: white;
+            border-radius: 30px;
+            cursor: pointer;
+            border: 3px;
+        }
+
+        .save-btn:hover {
+            background-color: #37373a;
+            border-style: solid;
+            border-width: 1px;
+        }
+
+        /* Layers Drop Down Button  */
+        .dropbtn {
+            background-color: transparent;
+            color: white;
+            padding: 16px;
+            font-size: 16px;
+            border: none;
+            cursor: pointer;
+        }
+
+        .dropbtn :hover {
+            background-color: transparent;
+            color: #dee2e6;
+        }
+
+
+
+        .dropdown {
+            position: relative;
+            display: block;
+        }
+
+        .dropdown-content {
+            display: none;
+            width: 100%;
+        }
+
+        .show {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1 class="heading">Customized Editor</h1>
+
+    </div>
+
+    <div class="editor-layout">
+        <div class="right-panel">
+            <div class="blocks-section" id="blocks"></div>
+            <div class="styles-container"></div>
+            <div class="traits-container"></div>
+        </div>
+        <div class="center-canvas">
+            <div id="gjs"></div>
+        </div>
+
+        <div class="left-panel">
+            <button class="save-btn" id="saveBtn" style="margin: 2%;">
+                <i class="bi bi-save"></i> Save
+            </button>
+            <div class="dropdown">
+                <button onclick="myFunction()" class="dropbtn">
+                    <h6 style="font-size: 20px; color: white; margin: 0%;" class="drop-btn"> <i
+                            class="bi bi-layers"></i>
+                        Layers</h6>
+                </button>
+                <div id="myDropdown" class="dropdown-content">
+                    <div class="layers-container" style="color: white;" class="drop-down-content"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="//unpkg.com/grapesjs"></script>
+
+    <script>
+        const editor = grapesjs.init({
+            container: '#gjs',
+            height: '100%',
+            width: 'auto',
+            fromElement: false,
+            storageManager: {
+                type: "local", // Use localStorage to save content
+                autosave: true, // Automatically save changes
+                autoload: true, // Automatically load saved content on refresh
+                stepsBeforeSave: 1, // Save after each change
+            },
+            layerManager: {
+                appendTo: '.layers-container',
+            },
+            selectorManager: {
+                appendTo: '.styles-container',
+            },
+            traitManager: {
+                appendTo: '.traits-container',
+            },
+
+            styleManager: {
+                appendTo: '.styles-container',
+                sectors: [
+                    {
+                        name: 'General',
+                        buildProps: ['float', 'display', 'position', 'top', 'right', 'left', 'bottom'],
+                    },
+                    {
+                        name: 'Dimension',
+                        buildProps: ['width', 'height', 'max-width', 'min-height', 'margin', 'padding'],
+                    },
+                    {
+                        name: 'Typography',
+                        buildProps: ['font-family', 'font-size', 'font-weight', 'color', 'line-height', 'letter-spacing'],
+                    },
+                    {
+                        name: 'Background',
+                        buildProps: ['background-color', 'background-image', 'background-size', 'background-position', 'background-repeat'],
+                    },
+                    {
+                        name: 'Border',
+                        buildProps: ['border', 'border-width', 'border-style', 'border-color', 'border-radius'],
+                    },
+                ],
+            },
+            blockManager: {
+                appendTo: '#blocks',
+                blocks: [
+                    {
+                        id: 'column1',
+                        label: `<i class="bi bi-columns" style="font-size: 20px;"></i> <h4>Column1</h4>`,
+                        content: `<div style="width: 100%; display: flex; justify-content: center;">
+                                    <div style="width: 100%; background-color: #f0f0f0; padding: 20px;">
+                                        Column 1
+                                    </div>
+                                </div>`,
+                    },
+                    {
+                        id: 'column2',
+                        label: `<i class="bi bi-columns" style="font-size: 20px;"></i> <h4>Column2</h4>`,
+                        content: `<div style="width: 100%; display: flex; justify-content: center;">
+                                    <div style="width: 50%; background-color: #f0f0f0; padding: 20px;">
+                                        Column 2
+                                    </div>
+                                </div>`,
+                    },
+
+                    {
+                        id: 'column3',
+                        label: `<i class="bi bi-columns" style="font-size: 20px;"></i> <h4>Column3</h4>`,
+                        content: `<div style="width: 100%; display: flex; justify-content: center;">
+                                    <div style="width: 33.33%; background-color: #f0f0f0; padding: 20px;">
+                                        Column 3
+                                    </div>
+                                </div>`,
+                    },
+                    {
+                        id: 'column3-7',
+                        label: `<i class="bi bi-columns" style="font-size: 20px;"></i> <h4>Column3/7</h4>`,
+                        content: `<div style="width: 100%; display: flex; justify-content: center;">
+                                    <div style="width: 33.33%; background-color: #f0f0f0; padding: 20px;">
+                                        Column 3/7
+                                    </div>
+                                </div>`,
+                    },
+                    {
+                        id: 'radio',
+                        label: `<i class="bi bi-ui-radios" style="font-size: 20px;"></i><h4>Radi Button</h4>`,
+                        content: '<input type="radio"> Option 1',
+                    },
+                    {
+                        id: 'textarea',
+                        label: `<i class="bi bi-textarea-t" style="font-size: 20px;"></i><h4>Text Area</h4>`,
+                        content: '<textarea rows="4" cols="50"></textarea>',
+                    },
+                    {
+                        id: 'select',
+                        label: `<i class="bi bi-caret-down-fill" style="font-size: 20px;"></i><h4>Text Area</h4>`,
+                        content: '<select><option value="option1">Option 1</option><option value="option2">Option 2</option></select>',
+                    },
+                    {
+                        id: 'label',
+                        label: `<i class="bi bi-tag" style="font-size: 20px;"></i> <h4>Label</h4>`,
+                        content: '<label for="name">Name:</label>',
+                    },
+                    {
+                        id: 'checkbox',
+                        label: `<i class="bi bi-check-square" style="font-size: 20px;"></i> <h4>Check box</h4>`,
+                        content: '<input type="checkbox"> Agree',
+                    },
+                    {
+                        id: 'form',
+                        label: `<i class="bi bi-file-earmark-text" style="font-size: 20px;"></i> <h4>Form</h4>`,
+                        content: '<form><input type="text" placeholder="Name"></form>',
+                    },
+                    {
+                        id: 'section',
+                        label: `<i class="bi bi-columns" style="font-size: 20px;"></i> <h4>Section</h4>`,
+                        content: '<section style="padding: 10px; border: 1px solid #ddd;"><h1>Section Title</h1><p>Insert your content here</p></section>',
+                    },
+                    {
+                        id: 'divider',
+                        label: `<i class="bi bi-dash" style="font-size: 20px;"></i> <h4>Divider</h4>`,
+                        content: '<hr>',
+                    },
+                    {
+                        id: 'heading1',
+                        label: `<i class="bi bi-card-heading" style="font-size: 20px;"></i><h4>Heading 1</h4>`,
+                        content: '<h1>Heading 1</h1>',
+                    },
+                    {
+                        id: 'heading2',
+                        label: `<i class="bi bi-card-heading" style="font-size: 20px;"></i><h4>Heading 2</h4>`,
+                        content: '<h2>Heading 2</h2>',
+                    },
+                    {
+                        id: 'heading3',
+                        label: `<i class="bi bi-card-heading" style="font-size: 20px;"></i><h4>Heading 3</h4>`,
+                        content: '<h3>Heading 3</h3>',
+                    },
+                    {
+                        id: 'heading4',
+                        label: `<i class="bi bi-card-heading" style="font-size: 20px;"></i><h4>Heading 4</h4>`,
+                        content: '<h4>Heading 4</h4>',
+                    },
+                    {
+                        id: 'heading5',
+                        label: `<i class="bi bi-card-heading" style="font-size: 20px;"></i><h4>Heading 5</h4>`,
+                        content: '<h5>Heading 5</h5>',
+                    },
+                    {
+                        id: 'heading6',
+                        label: `<i class="bi bi-card-heading" style="font-size: 20px;"></i><h4>Heading 6</h4>`,
+                        content: '<h6>Heading 6</h6>',
+                    },
+                    {
+                        id: 'text',
+                        label: `<i class="bi bi-type-bold" style="font-size: 20px;"></i> <h4>Text</h4>`,
+                        content: '<div style="padding: 5px;">Insert your text here</div>',
+                    },
+                    {
+                        id: 'navbar',
+                        label: `<i class="bi bi-list-ul" style="font-size: 20px;"></i> <h4>NavBar</h4>`,
+                        content: '<nav><ul><li><a href="#">Home</a></li><li><a href="#">About</a></li></ul></nav>',
+                    },
+                    {
+                        id: 'link',
+                        label: `<i class="bi bi-link-45deg" style="font-size: 20px;"></i> <h4>Link</h4>`,
+                        content: '<a href="#">Link</a>',
+                    },
+                    {
+                        id: 'link-box',
+                        label: `<i class="bi bi-box-arrow-in-right" style="font-size: 20px;"></i><h4>Link-box</h4>`,
+                        content: '<a href="#" class="btn btn-primary">Button Link</a>',
+                    },
+                    {
+                        id: 'video',
+                        label: `<i class="bi bi-youtube" style="font-size: 20px;"></i> <h4>Video</h4>`,
+                        content: '<iframe width="560" height="315" src="https://www.youtube.com/embed/your_video_id" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>',
+                    },
+                    {
+                        id: 'section',
+                        label: `<i class="bi bi-columns" style="font-size: 20px;"></i>`,
+                        content: '<section style="padding: 10px; border: 1px solid #ddd;"><h1>Section Title</h1><p>Insert your content here</p></section>',
+                    },
+                    {
+                        id: 'input-box',
+                        label: `<i class="bi bi-input-cursor-text" style="font-size: 20px;"></i><h4>Input-box</h4>`,
+                        content: '<input type="text" placeholder="Enter text here" style="padding: 5px; width: 100%;">',
+                    },
+                    {
+                        id: 'upload-image',
+                        label: `<i class="bi bi-image" style="font-size: 20px;"></i> <h4>Upload-image</h4>`,
+                        content: '<div><input type="file" accept="image/*"></div>',
+                    },
+                    {
+                        id: 'button',
+                        label: `<i class="bi bi-box-arrow-in-right" style="font-size: 20px;"></i> <h4>Button</h4>`,
+                        content: '<button>Click Me</button>',
+                    },
+                ],
+            },
+
+        });
+
+
+
+        const toggleIcon = document.querySelector('.fa-bars');
+        const blocksSection = document.querySelector('.blocks-section');
+
+        toggleIcon.addEventListener('click', () => {
+            const isVisible = blocksSection.style.display === 'flex';
+            blocksSection.style.display = isVisible ? 'none' : 'flex';
+        });
+
+        // const deviceSelect = document.getElementById('device-select');
+        // deviceSelect.addEventListener('change', (e) => {
+        //     editor.setDevice(e.target.value);
+        // });
+
+        editor.DeviceManager.add('Tablet', {
+            width: '768px',
+            height: '',
+        });
+        editor.DeviceManager.add('Mobile Portrait', {
+            width: '375px',
+            height: '',
+        });
+        editor.DeviceManager.add('Mobile Landscape', {
+            width: '667px',
+            height: '',
+        });
+
+        /*toggle between hiding and showing the dropdown content */
+        function myFunction() {
+            document.getElementById("myDropdown").classList.toggle("show");
+        }
+
+
+
+        document.getElementById('saveBtn').addEventListener('click', async () => {
+            const content = getEditorContent(); // Replace with the function to get the content you want to save
+            data = {
+                "content": content
+            }
+            try {
+                const response = await fetch('template/save_template?id=b2e0a21a-7b22-4ffb-b2f4-f497a8a7cec0', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json', // Ensure JSON content
+                    },
+                    body: JSON.stringify(data), // Send content as JSON
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to save content');
+                }
+
+                const result = await response.json();
+                console.log('Save successful:', result.message);
+                alert('Content saved successfully!');
+            } catch (error) {
+                console.error('Error saving content:', error.message);
+                alert(`Failed to save content: ${error.message}`);
+            }
+        });
+
+        // Example: Function to get content from an editor
+        function getEditorContent() {
+            const html = editor.getHtml();
+            const css = editor.getCss();
+            const fullHtml = `<html><head><style>${css}</style></head><body>${html}</body></html>`;
+            return fullHtml; // Replace with your content retrieval logic
+        }
+
+    </script>
+</body>
+
+</html>
