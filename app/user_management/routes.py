@@ -3,15 +3,68 @@ from models import *
 from . import user_management_bp
 from datetime import datetime,timedelta 
 
+@user_management_bp.post('/my_user')
+def add_user():
+    data = request.get_json()
+    try:
+        user_id = session.get('user_id')
+        user = User.objects(id=user_id).first()
+
+        if not user:
+            return jsonify({"status": "error", "message": "User not found"}), 404
+
+        # Extract user details from the request
+        if data["username"] == "" or data["email"] == "" or data["phone"] == "" or data["password"]=="" or data["subscription_plan_name"] == "" or data["billing_address"] == "":
+            return jsonify({"status": "error", "message": "All fields are required"}), 400
+
+        username = data["username"]
+        email = data["email"]
+        phone = data["phone"]
+        password=data["password"]
+        subscription_plan_name = data["subscription_plan_name"]
+        billing_address = data["billing_address"]  
+
+       
+        subscription_plan = Subscription_Plan.objects(name=subscription_plan_name).first()
+        if not subscription_plan:
+            return jsonify({"status": "error", "message": "Subscription plan not found"}), 404
+        
+        new_user = User(
+            username=username,
+            email=email,
+            phone=phone,
+            password=password,
+            subscription_plan=subscription_plan,  # reference to the subscription plan
+        )
+        new_user.set_hashed_password(data['password'])
+        new_user.save()
+
+        billing_address_obj = Billing_Address(
+            address_one=billing_address.get("address_one"),
+            address_two=billing_address.get("address_two"),
+            city=billing_address.get("city"),
+            state=billing_address.get("state"),
+            country=billing_address.get("country"),
+            pin_code=billing_address.get("pin_code"),
+            user=new_user
+        )
+        billing_address_obj.save()  # Save the billing address and generate an ID       
+        return jsonify({"status": "success", "message": "User added successfully"}), 201
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"Error occurred while adding a user: {e}"}), 500
+
+
+
 
 @user_management_bp.get('/my_user')
 def get_user():
     try:
         # Fetch the current user ID from the session
         user_id = session.get('user_id')
-        current_user = User.objects(id=user_id).first()
+        user = User.objects(id=user_id).first()
 
-        if not current_user:
+        if not user:
             return jsonify({"status": "error", "message": "User not found"}), 404
 
         # Pagination

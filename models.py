@@ -17,6 +17,7 @@ class Subscription_Plan(Document):
     added_time=DateTimeField(default=datetime.now())
     updated_time = DateTimeField()
     description=StringField(required=True)
+
        
 
 class User(Document):
@@ -38,11 +39,12 @@ class User(Document):
     is_active = BooleanField(default=True) 
     subscription_plan = ReferenceField(Subscription_Plan, reverse_delete_rule=CASCADE, null=True)
     
+    
 class Billing_Address(Document):
     meta={'collection':'billing_address'}
     
     id = StringField(primary_key=True, default=lambda: str(uuid4()))
-    user=ReferenceField(User,reverse_delete_rule=CASCADE,null=True)
+    user=ReferenceField(User,null=True)
     address_one=StringField(required=True)
     address_two=StringField(required=True)
     city=StringField(required=True)
