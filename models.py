@@ -44,7 +44,7 @@ class Billing_Address(Document):
     meta={'collection':'billing_address'}
     
     id = StringField(primary_key=True, default=lambda: str(uuid4()))
-    user=ReferenceField(User,null=True)
+    user=ReferenceField(User,reverse_delete_rule=CASCADEs,null=True)
     address_one=StringField(required=True)
     address_two=StringField(required=True)
     city=StringField(required=True)
