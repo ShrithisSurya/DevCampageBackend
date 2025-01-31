@@ -97,6 +97,7 @@ def get_user():
         "country": billing_map[user.id].country if user.id in billing_map else None,
         "zip_code": billing_map[user.id].pin_code if user.id in billing_map else None,
         "subscription_plan":user.subscription_plan.name if user.subscription_plan else None,
+        "usage": total_users,
         }for user in users_query
         ]
         
