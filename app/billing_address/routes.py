@@ -33,7 +33,7 @@ def create_billing_address():
 
     
 
-@billing_address_bp.get('my_bill')
+@billing_address_bp.get('/my_bill')
 def get_billing_address():
     try:
         user_id=session.get('user_id')

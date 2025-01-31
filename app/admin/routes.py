@@ -77,20 +77,29 @@ def get_user():
         if order_column:
             users_query = users_query.order_by(order_by)
         users_query = users_query.skip(start).limit(length)
+        
+        # Get all user IDs
+        user_ids = [user.id for user in users_query]
 
+        # Fetch billing addresses for those users
+        billing_addresses = Billing_Address.objects(user__in=user_ids)
+        billing_map = {billing.user.id: billing for billing in billing_addresses}
+        
+        
         # Prepare response data using list comprehension
-        users_data = [{
-          "name": user.username,
-          "email": user.email,
-          "phone": user.phone,
-          "billing_address": user.billing_address.address_one if user.billing_address else None,
-          "city": user.billing_address.city if user.billing_address else None,
-          "state":user.billing_address.state if user.billing_address else None,
-          "country":user.billing_address.country if user.billing_address else None,
-          "zip_code":user.billing_address.pin_code if user.billing_address else None,
-          "subscription_plan": user.subscription_plan.name if user.subscription_plan else None  # Access name only if plan exists
-        } for user in users_query]
-
+        users_data = [ {
+        "name": user.username,
+        "email": user.email,
+        "phone": user.phone,
+        "billing_address": billing_map[user.id].address_one if user.id in billing_map else None,
+        "city": billing_map[user.id].city if user.id in billing_map else None,
+        "state": billing_map[user.id].state if user.id in billing_map else None,
+        "country": billing_map[user.id].country if user.id in billing_map else None,
+        "zip_code": billing_map[user.id].pin_code if user.id in billing_map else None,
+        "subscription_plan":user.subscription_plan.name if user.subscription_plan else None,
+        }for user in users_query
+        ]
+        
         # Return data in DataTables format
         return jsonify({
             "draw": int(request.args.get('draw', 1)),
@@ -503,5 +512,186 @@ def get_tickets():
 
     except Exception as e:
         return jsonify({"status": "error", "message": f"Error Occured while retrieving SubscriptionPlans: {e}"}), 500
+    
+    
+    
+  
+@admin_bp.get('/contact_us')
+def get_contact_us():
+    try:
+        user_id=session.get('user_id')
+        user=User.objects(id=user_id)
+        if not user:
+             return jsonify({"status":"error","message":"User not found"}), 404
+         
+        #Pagination Start
+        start= max(0,int(request.args.get('start',0))) #Starting Page
+        length= max(1,int(request.args.get('length',10))) #over all length of the filter page
+        
+        # Search keyword
+        search_value = request.args.get('search[value]', '')
+
+        # Sorting parameters
+        order_column_index = int(request.args.get('order[0][column]', 0))  # Default to first column
+        order_direction = request.args.get('order[0][dir]', 'asc')  # Default to ascending
+        
+        columns_map={
+            0: None,     #Default no sorting
+            1: 'id',  
+            2: 'full_name',
+            3: 'email',
+            4: 'subject',
+            5: 'message',
+            6: 'added_time',
+            7: 'updated_time'
+        }
+        
+        # Determine the column to sort by
+        order_column = columns_map.get(order_column_index)
+        order_by = f"-{order_column}" if order_column and order_direction == 'desc' else order_column
+        
+        #Filter 
+        contact_us_query=Contact_us.objects()
+        
+         # Date range filtering
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        today = request.args.get('today', 'false').lower() == 'true'
+        
+        if today:
+            contact_us_query = contact_us_query.filter(
+                added_time__gte=datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            )
+        elif start_date and end_date:
+            try:
+                start_date = datetime.strptime(start_date, '%Y-%m-%d')
+                end_date = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
+                contact_us_query = contact_us_query.filter(added_time__gte=start_date, added_time__lt=end_date)
+            except ValueError:
+                return jsonify({"status": "error", "message": "Invalid date format. Use YYYY-MM-DD."}), 400
+            
+         # Apply search filter (case-insensitive)
+        if search_value:
+            contact_us_query = contact_us_query.filter(
+                Q(full_name__icontains=search_value) |
+                Q(email__icontains=search_value) |
+                Q(subject__icontains=search_value) |
+                Q(message__icontains=search_value) |
+                Q(id__icontains=search_value)
+            )
+         # Total and filtered counts
+        total_contact = Contact_us.objects().count()
+        filtered_contact = contact_us_query.count()
+
+        # Apply sorting and pagination
+        if order_column:
+            contact_us_query = contact_us_query.order_by(order_by)
+        contact_us_query = contact_us_query.skip(start).limit(length)
+        
+         # Prepare response data
+        contact_us_data = [{
+            "id": str(contact.id),
+            "full_name": contact.full_name,
+            "email": contact.email,
+            "subject": contact.subject,
+            "message": contact.message,
+            "added_time": contact.added_time.strftime('%Y-%m-%d %H:%M:%S'),
+            "updated_time": contact.updated_time.strftime('%Y-%m-%d %H:%M:%S') if contact.updated_time else None,
+        } for contact in contact_us_query]
+
+        # Return data in DataTables format
+        return jsonify({
+            "draw": int(request.args.get('draw', 1)),
+            "recordsTotal": total_contact,
+            "recordsFiltered": filtered_contact,
+            "data": contact_us_data
+        }), 200
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"Error occurred while retrieving Subscription Plans: {str(e)}"}), 500
+    
+    
+    
+@admin_bp.get('/my_subscriber')
+def get_codeless_subscriber():
+    try:
+        user_id=session.get('user_id')
+        user=User.objects(id=user_id)
+        if not user:
+            return jsonify({"status":"error","message":"User not found"}), 404
+        
+        #pagination
+        start=int(request.args.get('start',0)) #pagination start
+        length=int(request.args.get('length',10)) #pagination end
+        
+        #search keyword
+        search_value=request.args.get('search[value]','') 
+        
+        #sorting
+        order_column_index=int(request.args.get('order[0][column]',0)) #column index to start
+        order_direction=request.args.get('order[0][dir]','asc') #sort direction : asc or dsc
+        
+        #map column index to field names
+        columns_map={
+            0: None, #Default no sorting
+            1: 'id',
+            2: 'username',
+            3: 'email',
+            4: 'stream',
+            5: 'added_time',
+            6: 'updated_time'
+        }
+
+        # Get sorting column
+        order_column = columns_map.get(order_column_index)
+        order_by = f"-{order_column}" if order_column and order_direction == 'desc' else order_column
+        
+        #Initialize Query
+        codeless_subscriber_query=Codeless_Subscriber.objects()
+        
+         # Apply date range filter
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        today = request.args.get('today', 'false').lower() == 'true'
+        
+        if today:
+            codeless_subscriber_query=codeless_subscriber_query.filter(
+                added_time_gte=datetime.now().replace(hour=0,minute=0,second=0,microsecond=0)
+            )
+        elif start_date and end_date:
+            start_date=datetime.strptime(start_date,'%Y-%m-%d')
+            end_date = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
+            codeless_subscriber_query = codeless_subscriber_query.filter(added_time__gte=start_date, added_time__lt=end_date)
+            
+        # Total and filtered counts
+        total_codeless_subscriber = Codeless_Subscriber.objects.count()
+        filtered_codeless_subscriber = codeless_subscriber_query.count()
+
+        # Apply sorting and pagination
+        if order_column:
+            codeless_subscriber_query = codeless_subscriber_query.order_by(order_by)
+        codeless_subscriber_query = codeless_subscriber_query.skip(start).limit(length)
+
+        # Prepare response data using list comprehension
+        codeless_subscriber_data = [{
+          "id": str(codeless.id),
+          "username": codeless.user.username,
+          "email": codeless.email,
+          "stream": codeless.stream,
+          "added_time": codeless.added_time.strftime('%Y-%m-%d %H:%M:%S'),
+          "updated_time": codeless.updated_time.strftime('%Y-%m-%d %H:%M:%S') if codeless.updated_time else None,
+        } for codeless in codeless_subscriber_query]
+
+        # Return data in DataTables format
+        return jsonify({
+            "draw": int(request.args.get('draw', 1)),
+            "recordsTotal": total_codeless_subscriber,
+            "recordsFiltered": filtered_codeless_subscriber,
+            "data": codeless_subscriber_data
+        }), 200
+     
+    except Exception as e:
+         return jsonify({"status": "error", "message": f"Error Occurred while retrieving a Codeless Subcriber Details: {str(e)}"}), 500
+
     
     
