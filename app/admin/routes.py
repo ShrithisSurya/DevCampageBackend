@@ -33,13 +33,13 @@ def get_user():
             1: 'name',
             2: 'email',
             3: 'phone',
-            4: 'billing_address',
-            5: 'city',
-            6: 'state',
-            7: 'country',
-            8: 'zip_code',
-            9: 'subscription_plan',
-            10: 'usage'
+            4: 'address_one',
+            5: 'address_two',
+            6: 'city',
+            7: 'state',
+            8: 'country',
+            9: 'zip_code',
+            10:'subscription_plan',
         }
         # Get sorting column
         order_column = columns_map.get(order_column_index)
@@ -91,13 +91,13 @@ def get_user():
         "name": user.username,
         "email": user.email,
         "phone": user.phone,
-        "billing_address": billing_map[user.id].address_one if user.id in billing_map else None,
+        "address_one": billing_map[user.id].address_one if user.id in billing_map else None,
+        "address_two": billing_map[user.id].address_two if user.id in billing_map else None,
         "city": billing_map[user.id].city if user.id in billing_map else None,
         "state": billing_map[user.id].state if user.id in billing_map else None,
         "country": billing_map[user.id].country if user.id in billing_map else None,
         "zip_code": billing_map[user.id].pin_code if user.id in billing_map else None,
         "subscription_plan":user.subscription_plan.name if user.subscription_plan else None,
-        "usage": total_users,
         }for user in users_query
         ]
         
