@@ -208,107 +208,91 @@ def get_template():
 
      except Exception as e:
         return jsonify({"status": "error", "message": f"Error occurred while retrieving Templates: {str(e)}"}), 500
-
 @admin_bp.get('/logs')
 def get_logs():
     try:
         # Pagination parameters
         start = int(request.args.get('start', 0))
         length = int(request.args.get('length', 10))
-        
+
+
         # Sorting parameters
         order_column_index = int(request.args.get('order[0][column]', 0))
         order_direction = request.args.get('order[0][dir]', 'asc')
-        
+
+
         # Mapping columns to fields
-        columns_map = {0: None, 1: 'log_time', 2: 'endpoint', 3: 'response', 4: 'user', 5: 'domain'}
-        order_column = columns_map.get(order_column_index, '-log_time')
+        columns_map = {0: 'endpoint', 1: 'method', 2: 'log_time'}
+        order_column = columns_map.get(order_column_index, 'log_time')
         order_by = f"-{order_column}" if order_direction == 'desc' else order_column
+
 
         # Get current user
         user = User.objects(id=session.get('user_id')).first()
         if not user:
             return jsonify({"status": "error", "message": "User Not Found"}), 404
-        
+
+
         # Base query for logs
         logs_query = Api_Log.objects(user=str(user.id))
-        
-        # Date range for Today, Yesterday, Last Month
+
+
+        # Date ranges
         today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         today_end = datetime.now().replace(hour=23, minute=59, second=59, microsecond=999999)
         yesterday_start = today_start - timedelta(days=1)
         yesterday_end = today_end - timedelta(days=1)
         last_month_start = (datetime.now().replace(day=1) - timedelta(days=1)).replace(day=1)
-        last_month_end = last_month_start.replace(day=28) + timedelta(days=4)
-        
-        # Log count type filter
-        log_count_type = request.args.get('log_count_type', '').lower()
-        
-        # Count logs for today, yesterday, last month
-        today_count = logs_query.filter(log_time__gte=today_start, log_time__lt=today_end).count()
-        yesterday_count = logs_query.filter(log_time__gte=yesterday_start, log_time__lt=yesterday_end).count()
-        last_month_count = logs_query.filter(log_time__gte=last_month_start, log_time__lt=last_month_end).count()
+        last_month_end = last_month_start + timedelta(days=31)
+
+
+        # Count logs
+        today_count = logs_query.filter(log_timegte=today_start, log_timelt=today_end).count()
+        yesterday_count = logs_query.filter(log_timegte=yesterday_start, log_timelt=yesterday_end).count()
+        last_month_count = logs_query.filter(log_timegte=last_month_start, log_timelt=last_month_end).count()
         user_count = User.objects.count()
-        
-        # Apply log count type filter (Today, Yesterday, Last Month, etc.)
-        if log_count_type == 'today':
-            logs_query = logs_query.filter(log_time__gte=today_start, log_time__lt=today_end)
-        elif log_count_type == 'yesterday':
-            logs_query = logs_query.filter(log_time__gte=yesterday_start, log_time__lt=yesterday_end)
-        elif log_count_type == 'lastmonth':
-            logs_query = logs_query.filter(log_time__gte=last_month_start, log_time__lt=last_month_end)
-        elif log_count_type == '':
-            
-            
-            # Date filter range (from request params)
-            if request.args.get('today', 'false').lower() == 'true':
-                logs_query = logs_query.filter(log_time__gte=today_start)
-            else:
-                start_date = request.args.get('start_date')
-                end_date = request.args.get('end_date')
-                if start_date and end_date:
-                    logs_query = logs_query.filter(log_time__gte=datetime.strptime(start_date, '%Y-%m-%d'),log_time__lt=datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1))
-        
-        # Search filter (case-insensitive)
+
+
+        # Search filter
         search_value = request.args.get('search[value]', '')
         if search_value:
             logs_query = logs_query.filter(
-                Q(endpoint__icontains=search_value) | Q(response__icontains=search_value) |
-                Q(domain__icontains=search_value) | Q(platform__icontains=search_value) |
+                Q(endpointicontains=search_value) | Q(responseicontains=search_value) |
+                Q(domainicontains=search_value) | Q(platformicontains=search_value) |
                 Q(user__icontains=search_value)
             )
-        
+
+
         # Pagination and sorting
         total_logs = Api_Log.objects(user=str(user.id)).count()
         filtered_logs = logs_query.count()
         logs_query = logs_query.order_by(order_by).skip(start).limit(length)
+
 
         # Prepare log data
         log_data = [{
             "id": str(log.id),
             "time": log.log_time.strftime('%Y-%m-%d %H:%M:%S'),
             "endpoint": log.endpoint,
-            "user": User.objects(id=log.user.id).first().username if log.user else "Unknown",
-            "domain": log.domain,
-            "method":log.method,
-            "platform": log.platform,
-            "response": log.response
-        } for log in logs_query]
-        
-        # Return the response
-        return jsonify({
-            "status": "success",
+            "method": log.method,
             "log_counts": {
                 "today_count": today_count,
                 "yesterday_count": yesterday_count,
                 "last_month_count": last_month_count,
                 "user_count": user_count
-            },
+            }
+        } for log in logs_query]
+
+
+        # Response
+        return jsonify({
+            "status": "success",
             "draw": int(request.args.get('draw', 1)),
             "recordsTotal": total_logs,
             "recordsFiltered": filtered_logs,
             "data": log_data
         }), 200
+
 
     except Exception as e:
         return jsonify({"status": "error", "message": f"Error occurred while retrieving logs: {e}"}), 500
